@@ -1,0 +1,14 @@
+[Unit]
+Description=Top 5 CPU Processes Monitoring
+
+[Timer]
+OnBootSec=0
+OnUnitActiveSec=60
+AccuracySec=1
+
+[Service]
+Type=simple
+ExecStart=/bin/bash /home/savchenko/top5.sh && /bin/echo timestamp job_done >> /var/log/top5.log
+
+[Install]
+WantedBy=timers.target
