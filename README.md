@@ -64,7 +64,71 @@ https://hub.docker.com/r/matsavx/internship/tags
 Создал свой репозиторий на github, инициализировал папку, закинул файлы из задания в репозиторий, описал краткий readme файл. https://github.com/matsavx/Internship
 ## Неделя 3. День 1-5
 ### Промежуточное задание
--
+#### 1. VM
+Познакомился с vCenter.
+ВМ tadm-savchenko (almalinux 9.3) (hostname: tadm-savchenko-web1, ip: 10.0.16.96) (2 CPU, 4 RAM, 50 HD)
+#### 2. Nginx + Unit
+Nginx 1.25 : уже устанавливал ранее
+Unit 1.31 : Установил по инструкции с официального сайта добавлением yum-репозитория. Также установил unit-php.
+Конфиг настройки nginx "/etc/nginx/conf.d/default-copy.conf".
+Научился в конфиг unit, все самое базовое + немного сверху. Написал unit конфиг для drupal, слушается на порту 8080. Конфиг находится в "/root/dpp.conf". Также есть дефолтный конфиг без выкрутасов "/root/unit.json". Как не старался - unit не хочет обрабатывать php код. При загрузке страницы просто скачивает index.php. Информации в интернете для меня недостаточно, нашел только официальный сайт и прочитал мини-учебник по unit. 
+#### 3. SSL
+Настроил самоподписанный SSL-сертификат. Рабочий конфиг: "/etc/nginx/conf.d/ssl.conf". В настоящее время закоменчен в "/etc/nginx/nginx.conf" и не работает, потому что я не смог соединить SSL и HAProxy, и nginx сейчас слушается на 80-м порту.
+
+sudo mkdir /etc/ssl/private
+sudo chmod 700 /etc/ssl/private
+sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout /etc/ssl/private/nginx-selfsigned.key -out /etc/ssl/certs/nginx-selfsigned.crt
+sudo openssl dhparam -out /etc/ssl/certs/dhparam.pem 2048
+#### 4. memcached
+```yum install memcached php-pecl-memcached```
+```vi /etc/sysconfig/memcached```
+***
+PORT="11211"
+***
+USER="memcached"
+***
+MAXCONN="1024"
+***
+CACHESIZE="512"
+***
+OPTIONS="-l 127.0.0.1 -U 0"
+***
+```nano /etc/php.ini```
+***
+[Session]
+***
+session.save_handler = memcached
+***
+session.save_path = "127.0.0.1:11211"
+***
+Проверка:
+```php -r "phpinfo();" | grep memcached```
+```php -m | grep memcached```
+#### 5. www -> без www
+Добавил в конфиг nginx следующее:
+```if ($host ~* ^www\.(.*)$) { return 301 $scheme://$server_name$request_uri; }```
+#### 6. Drupal 10
+```curl -sS https://getcomposer.org/installer | sudo php -- --install-dir=/usr/local/bin --filename=composer```
+```composer create-project drupal/recommended-project:10.0.0 /var/www/my_drupal --stability dev --no-interaction```
+```cd /var/www/my_drupal/```
+```sudo chmod 666 composer.json```
+```composer config --no-plugins allow-plugins.cweagans/composer-patches true```
+```sudo /usr/local/bin/composer install```
+#### 7. Drupal 10 + postgresql-12
+```yum install php-pgsql```
+***
+Подправил конфиг nginx добавлением обработки различным локейшенов, как написано на официальном сайте. Настроил постгрес под друпал:
+```su - postgres```
+```psql```
+```CREATE USER drupal WITH password 'drupal';```
+```CREATE DATABASE drupaldb OWNER drupal;```
+```GRANT ALL privileges ON DATABASE drupaldb TO drupal;```
+```exit```
+```psql -h localhost drupaldb drupal```
+```ALTER DATABASE "drupaldb" SET bytea_output = 'escape';```
+```yum install -y postgresql12-contrib```
+```psql -h localhost drupaldb postgres```
+```CREATE EXTENSION pg_trgm;```
 ## Неделя 4. День 1
 ### Промежуточная аттестация
 -
