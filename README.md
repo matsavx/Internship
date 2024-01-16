@@ -74,33 +74,28 @@ Unit 1.31 : Установил по инструкции с официально
 Научился в конфиг unit, все самое базовое + немного сверху. Написал unit конфиг для drupal, слушается на порту 8080. Конфиг находится в "/root/dpp.conf". Также есть дефолтный конфиг без выкрутасов "/root/unit.json". Как не старался - unit не хочет обрабатывать php код. При загрузке страницы просто скачивает index.php. Информации в интернете для меня недостаточно, нашел только официальный сайт и прочитал мини-учебник по unit. 
 #### 3. SSL
 Настроил самоподписанный SSL-сертификат. Рабочий конфиг: "/etc/nginx/conf.d/ssl.conf". В настоящее время закоменчен в "/etc/nginx/nginx.conf" и не работает, потому что я не смог соединить SSL и HAProxy, и nginx сейчас слушается на 80-м порту.
-
+```
 sudo mkdir /etc/ssl/private
 sudo chmod 700 /etc/ssl/private
 sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout /etc/ssl/private/nginx-selfsigned.key -out /etc/ssl/certs/nginx-selfsigned.crt
 sudo openssl dhparam -out /etc/ssl/certs/dhparam.pem 2048
+```
 #### 4. memcached
 ```yum install memcached php-pecl-memcached```
 ```vi /etc/sysconfig/memcached```
-***
+```
 PORT="11211"
-***
 USER="memcached"
-***
 MAXCONN="1024"
-***
 CACHESIZE="512"
-***
 OPTIONS="-l 127.0.0.1 -U 0"
-***
+```
 ```nano /etc/php.ini```
-***
+```
 [Session]
-***
 session.save_handler = memcached
-***
 session.save_path = "127.0.0.1:11211"
-***
+```
 Проверка:
 ```php -r "phpinfo();" | grep memcached```
 ```php -m | grep memcached```
@@ -108,27 +103,31 @@ session.save_path = "127.0.0.1:11211"
 Добавил в конфиг nginx следующее:
 ```if ($host ~* ^www\.(.*)$) { return 301 $scheme://$server_name$request_uri; }```
 #### 6. Drupal 10
-```curl -sS https://getcomposer.org/installer | sudo php -- --install-dir=/usr/local/bin --filename=composer```
-```composer create-project drupal/recommended-project:10.0.0 /var/www/my_drupal --stability dev --no-interaction```
-```cd /var/www/my_drupal/```
-```sudo chmod 666 composer.json```
-```composer config --no-plugins allow-plugins.cweagans/composer-patches true```
-```sudo /usr/local/bin/composer install```
+```
+curl -sS https://getcomposer.org/installer | sudo php -- --install-dir=/usr/local/bin --filename=composer
+composer create-project drupal/recommended-project:10.0.0 /var/www/my_drupal --stability dev --no-interaction
+cd /var/www/my_drupal/
+sudo chmod 666 composer.json
+composer config --no-plugins allow-plugins.cweagans/composer-patches true
+sudo /usr/local/bin/composer install
+```
 #### 7. Drupal 10 + postgresql-12
 ```yum install php-pgsql```
 ***
 Подправил конфиг nginx добавлением обработки различным локейшенов, как написано на официальном сайте. Настроил постгрес под друпал:
-```su - postgres```
-```psql```
-```CREATE USER drupal WITH password 'drupal';```
-```CREATE DATABASE drupaldb OWNER drupal;```
-```GRANT ALL privileges ON DATABASE drupaldb TO drupal;```
-```exit```
-```psql -h localhost drupaldb drupal```
-```ALTER DATABASE "drupaldb" SET bytea_output = 'escape';```
-```yum install -y postgresql12-contrib```
-```psql -h localhost drupaldb postgres```
-```CREATE EXTENSION pg_trgm;```
+```
+su - postgres
+psql
+CREATE USER drupal WITH password 'drupal';
+CREATE DATABASE drupaldb OWNER drupal;
+GRANT ALL privileges ON DATABASE drupaldb TO drupal;
+exit
+psql -h localhost drupaldb drupal
+ALTER DATABASE "drupaldb" SET bytea_output = 'escape';
+yum install -y postgresql12-contrib
+psql -h localhost drupaldb postgres
+CREATE EXTENSION pg_trgm;
+```
 ## Неделя 4. День 1
 ### Промежуточная аттестация
 -
@@ -211,46 +210,83 @@ Prometheus, alertmanager и node_exporter устанавливал одинак�
 Все пакеты брал с какого-то репозитория, который нашел в кф группы Циркон, так как elastic наложил санкции. Устанавливал скачанные пакеты через команду ```rpm -ivh kibana-*.rpm``` (например).
 #### logastash конфиги
 На каком порту слушается, т.е. как принимает: 
-```vi /etc/logstash/conf.d/input.conf``` input { beats { port => 5044 } }
+```vi /etc/logstash/conf.d/input.conf``` 
+```
+input { beats { port => 5044 } }
+```
 ***
-Самый простой фильтр для системных логов```vi /etc/logstash/conf.d/filter.conf``` filter { if [type] == "syslog" { grok { match => { "message" => "%{SYSLOGTIMESTAMP:syslog_timestamp} %{SYSLOGHOST:syslog_hostname} %{DATA:syslog_program}(?:\[%{POSINT:syslog_pid}\])?: %{GREEDYDATA:syslog_message}" } add_field => [ "received_at", "%{@timestamp}" ] add_field => [ "received_from", "%{host}" ] } date { match => [ "syslog_timestamp", "MMM  d HH:mm:ss", "MMM dd HH:mm:ss" ] } } }
+Самый простой фильтр для системных логов ```vi /etc/logstash/conf.d/filter.conf``` 
+```
+filter {
+  if [type] == "syslog" {
+    grok {
+      match => { "message" => "%{SYSLOGTIMESTAMP:syslog_timestamp} %{SYSLOGHOST:syslog_hostname} %{DATA:syslog_program}(?:\[%{POSINT:syslog_pid}\])?: %{GREEDYDATA:syslog_message}" }
+      add_field => [ "received_at", "%{@timestamp}" ]
+      add_field => [ "received_from", "%{host}" ]
+    }
+    date {
+      match => [ "syslog_timestamp", "MMM  d HH:mm:ss", "MMM dd HH:mm:ss" ]
+    }
+  }
+}
+```
 ***
-Ну и дефолтный конфиг на отправку логов в эластик:```vi /etc/logstash/conf.d/output.conf``` output { elasticsearch { hosts => ["localhost:9200"] hosts => "localhost:9200" manage_template => false index => "%{[@metadata][beat]}-%{+YYYY.MM.dd}" document_type => "%{[@metadata][type]}" } }
+Ну и дефолтный конфиг на отправку логов в эластик:```vi /etc/logstash/conf.d/output.conf```
+```
+output {
+  elasticsearch { hosts => ["localhost:9200"]
+    hosts => "localhost:9200"
+    manage_template => false
+    index => "%{[@metadata][beat]}-%{+YYYY.MM.dd}"
+    document_type => "%{[@metadata][type]}"
+  }
+}
+```
 #### filebeat
 Настраивал этот конфиг на всех серверах одинаково: ```vi /etc/filebeat/filebeat.yml```. Тут активировал сбор логов файлбитом и указал пути до логов, откуда собирать. Закоментил опцию output.elasticsearch, так как она будет мешать, ну и собственно в output.logstash указал куда отправлять логи (где установлен logstash"). 
 ### ha1 + ha2
 #### keepalived
-```firewall-cmd --permanent --add-rich-rule='rule protocol value="vrrp" accept'```. Сам keepalived установил просто через yum и подправил конфиг в systemd, потому что дефолтный смотрит на не существующий файлик запуска, который находится в другом месте. Ну и отредактировал "keepalived.yml", который на обоих серверах отличается только опцией state, которая стоит "master" на ha1 и "backup" на ha2 Выглядит он так: ```global_defs {```
-```smtp_server 10.0.16.1```
-```smtp_connect_timeout 30```
-```router_id LVS_DEVEL }```
-```vrrp_instance VI_1```
-```{ state MASTER```
-```interface ens192```
-```virtual_router_id 51```
-```priority 100```
-```advert_int 1```
-```authentication {```
-```auth_type PASS```
-```auth_pass 1111 }```
-```virtual_ipaddress { 10.0.16.68 } }``
+```firewall-cmd --permanent --add-rich-rule='rule protocol value="vrrp" accept'```. Сам keepalived установил просто через yum и подправил конфиг в systemd, потому что дефолтный смотрит на не существующий файлик запуска, который находится в другом месте. Ну и отредактировал "keepalived.yml", который на обоих серверах отличается только опцией state, которая стоит "master" на ha1 и "backup" на ha2 Выглядит он так:
+```
+global_defs {
+smtp_server 10.16.0.1
+smtp_connect_timeout 30
+router_id LVS_DEVEL
+}
+vrrp_instance VI_1 {
+state MASTER
+interface ens192 
+virtual_router_id 51
+priority 101
+advert_int 1
+authentication {
+auth_type PASS
+auth_pass 1111
+}
+virtual_ipaddress {
+10.0.16.68
+}
+}
+```
 #### haproxy
-```yum -y install gcc perl pcre-devel openssl-devel zlib-devel readline-devel systemd-devel make``` (тут все в основном для сборки)
-```wget -O /tmp/haproxy.tgz https://www.haproxy.org/download/2.8/src/haproxy-2.8.3.tar.gz```
-```tar -xzvf /tmp/haproxy.tgz -C /tmp && cd /tmp/haproxy-*```
-```make USE_NS=1 USE_TFO=1 USE_OPENSSL=1 USE_ZLIB=1 USE_PCRE=1 USE_SYSTEMD=1 USE_LIBCRYPT=1 USE_THREAD=1 TARGET=linux-glibc```
-```make TARGET=linux-glibc install-bin install-man```
-```cp /usr/local/sbin/haproxy /usr/sbin/haproxy```
-```mkdir -p /var/lib/haproxy```
-```mkdir -p /etc/haproxy```
-```cat <<'EOT' | sudo tee /etc/systemd/system/haproxy.service (тут длинный дефолтный конфиг для сервиса)
-```cat <<EOT | sudo tee /etc/sysconfig/haproxy CLI_OPTIONS="-Ws" CONFIG_FILE=/etc/haproxy/haproxy.cfg PID_FILE=/var/run/haproxy.pid EOT```
-```systemctl daemon-reload```
-```haproxy -v```
-```vim /etc/haproxy/haproxy.cfg```
-```/usr/local/sbin/haproxy -c -V -f /etc/haproxy/haproxy.cfg```
-```systemctl enable haproxy.service```
-```systemctl start haproxy.service```
+```
+yum -y install gcc perl pcre-devel openssl-devel zlib-devel readline-devel systemd-devel make (тут все в основном для сборки)
+wget -O /tmp/haproxy.tgz https://www.haproxy.org/download/2.8/src/haproxy-2.8.3.tar.gz
+tar -xzvf /tmp/haproxy.tgz -C /tmp && cd /tmp/haproxy-*
+make USE_NS=1 USE_TFO=1 USE_OPENSSL=1 USE_ZLIB=1 USE_PCRE=1 USE_SYSTEMD=1 USE_LIBCRYPT=1 USE_THREAD=1 TARGET=linux-glibc
+make TARGET=linux-glibc install-bin install-man
+cp /usr/local/sbin/haproxy /usr/sbin/haproxy
+mkdir -p /var/lib/haproxy
+mkdir -p /etc/haproxy
+cat <<'EOT' | sudo tee /etc/systemd/system/haproxy.service (тут длинный дефолтный конфиг для сервиса)
+cat <<EOT | sudo tee /etc/sysconfig/haproxy CLI_OPTIONS="-Ws" CONFIG_FILE=/etc/haproxy/haproxy.cfg PID_FILE=/var/run/haproxy.pid EOT
+systemctl daemon-reload
+haproxy -v
+vim /etc/haproxy/haproxy.cfg
+usr/local/sbin/haproxy -c -V -f /etc/haproxy/haproxy.cfg
+systemctl enable haproxy.service
+systemctl start haproxy.service
+```
 ***
 Ну и нашел дефолтный конфиг, который сначала пытался поменять под 443 и SSL, так как web-сервера на которых смотрели хапрокси слушались на 443, но у меня не получилось. Возможно проблема в самоподписанных сертификатов, что на web, что на haproxy, ну либо я не так что-то делаю. Вернул конфиг в рабочее состояние, слушает сервера на 80м порту. Чтобы все работало - переписал конфиг nginx на web-машинках на работу без ssl.
 ## Неделя 6. День 1
