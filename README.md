@@ -147,7 +147,111 @@ session.save_path = "127.0.0.1:11211"
 ### ELK
 ## Неделя 5. День 1
 ### Puppet, Hiera, Ansible
-## Неделя 5. День 2-5
-### Проектная работа
+## Неделя 5. День 2-5. Проектная работа
+Окончательно разобрался с vCenter, создал template (savchenko-template-almalinux-minimal), так как на образ almalinux-minimal есть только на кластере sandbox1, но на нем заканчивались ресурсы. Поэтому создал там template и через него создавал новые машинки на другом кластере. Менял адрес сервера через утилиту ```nmtui```. 
+***
+### ВМ
+***
+#### tadm-savchenko-web1
+Данные: ```hostname=tadm-savchenko-web1```, ```almalinux 9.3```, ```ip=10.0.16.96```. 
+(единственная кто отичается названием в vCenter, имя там tadm-savchenko, а hostname изменен на машине)
+***
+Приложения: ```Drupal 10.0.0```, ```nginx 1.25```, ```unit 1.31```, ```php 8.1.7```, ```unit-php```, ```php-pgsql```, ```memcached 1.6.9```, ```rsync 3.2.3```, ```node-exporter 1.7.0```, ```filebeat 7.9.3```
+
+#### tadm-savchenko-web2
+Данные:
+```hostname=tadm-savchenko-web2```, ```almalinux 9.3```, ```ip=10.0.16.139```. 
+***
+Приложения ```Drupal 10.0.0```, ```nginx 1.25```, ```unit 1.31```, ```php 8.1.7```, ```unit-php```, ```php-pgsql```, ```memcached 1.6.9```, ```rsync 3.2.3```, ```node-exporter 1.7.0```, ```filebeat 7.9.3```
+
+#### tadm-savchenko-pg1
+Данные:
+```hostname=tadm-savchenko-pg1```, ```almalinux 9.3```, ```ip=10.0.16.97```. 
+***
+Приложения: ```postgresql 12.17```, ```node-exporter 1.7.0```, ```filebeat 7.9.3```
+
+#### tadm-savchenko-pg2
+Данные:
+```hostname=tadm-savchenko-pg2```, ```almalinux 9.3```, ```ip=10.0.16.98```. 
+***
+Приложения: ```postgresql 12.17```, ```node-exporter 1.7.0```, ```filebeat 7.9.3```.
+
+#### tadm-savchenko-overseer
+Данные:
+```hostname=tadm-savchenko-overseer```, ```almalinux 9.3```, ```ip=10.0.16.87```. 
+***
+Приложения: ```prometheus 2.49.1```, ```grafana-server 9.2.10```, ```alertmanager 0.26.0```,```node-exporter 1.7.0```, ```filebeat 7.9.3```
+
+#### tadm-savchenko-elk1
+Данные:
+```hostname=tadm-savchenko-elk1```, ```almalinux 9.3```, ```ip=10.0.16.84```. 
+***
+Приложения: ```elasticsearch-server 7.9.3```, ```logstash 7.9.3```, ```kibana 7.9.3```, ```openjdk 11.0.21```, ```node-exporter 1.7.0```, ```filebeat 7.9.3```
+
+#### tadm-savchenko-ha1
+Данные:
+```hostname=tadm-savchenko-ha1```, ```almalinux 9.3```, ```ip=10.0.16.101```. 
+***
+Приложения: ```haproxy 2.8.3```, ```keepalived 2.2.8```,```node-exporter 1.7.0```, ```filebeat 7.9.3```
+
+#### tadm-savchenko-ha21
+Данные: ```hostname=tadm-savchenko-ha2```, ```almalinux 9.3```, ```ip=10.0.16.102```. 
+***
+Приложения: ```haproxy 2.8.3```, ```keepalived 2.2.8```,```node-exporter 1.7.0```, ```filebeat 7.9.3```
+
+#### VIP
+```ip = 10.0.16.68```
+### web1 + web2
+С описания web1 в "Промежуточном задании ничего практически ничего не изменилось, кроме того, что я удалил с неё postgresql и настроил rsync. Еще во время промежуточного задания я нарисовал в Drupal легкую преветственную страничку, но пароль от машины я потерял. Создав новую всё переустановил, но в этот раз никак не кастомизировал web страничку. Во-первых, не очень хотелось, а во-вторых, мне показалось, что для демонстрации работы проекта это никак не отобразится, потому что drupal хранит все фронтовые данные в БД. С rsync всё просто, установил и настроил конфиг на то, чтобы web2 мог синхронизировать папку "/var/www/my_drupal/", так как все изменения кода там (допустим когда я через композер подключаю новые расширения). ВМ web2 была полностью скопирована через vCenter с web1. Изменен только ip, hostname и конфиг rsync. Так же добавил сценарий для cron, на выполнение раз в час скрипта синхронизации, который я написал.
+### pg1 + pg2
+Полностью перенес постгрес на эти две машинки. pg1 - master, pg2 - slave. Настроил репликацию и бэкапирование по примеру, который я описал ранее.
+### overseer
+Prometheus, alertmanager и node_exporter устанавливал одинаково: Скачивал последнюю версию с официального сайта prometheus через wget, распаковывал архив и перемещал данные в /usr/local/bin, создавал пользователя под каждый сервис для запуска приложения, выдавал ему нужные права и в "/etc/systemd/system" создавал файлик сервиса для управления им. В конфиге prometheus указал в "targets" все сервера с портом экспортера 9100. node_exporter установил на все машинки, поигрался с добавлением whitelist для сервисов. В alertmanager особо не углублялся - создал простое правило на то, что nginx лежит больше минуты и в конфиге прометеуса настроил его отображение в веб-вьюшке.
+### elk
+Все пакеты брал с какого-то репозитория, который нашел в кф группы Циркон, так как elastic наложил санкции. Устанавливал скачанные пакеты через команду ```rpm -ivh kibana-*.rpm``` (например).
+#### logastash конфиги
+На каком порту слушается, т.е. как принимает: 
+```vi /etc/logstash/conf.d/input.conf``` input { beats { port => 5044 } }
+***
+Самый простой фильтр для системных логов```vi /etc/logstash/conf.d/filter.conf``` filter { if [type] == "syslog" { grok { match => { "message" => "%{SYSLOGTIMESTAMP:syslog_timestamp} %{SYSLOGHOST:syslog_hostname} %{DATA:syslog_program}(?:\[%{POSINT:syslog_pid}\])?: %{GREEDYDATA:syslog_message}" } add_field => [ "received_at", "%{@timestamp}" ] add_field => [ "received_from", "%{host}" ] } date { match => [ "syslog_timestamp", "MMM  d HH:mm:ss", "MMM dd HH:mm:ss" ] } } }
+***
+Ну и дефолтный конфиг на отправку логов в эластик:```vi /etc/logstash/conf.d/output.conf``` output { elasticsearch { hosts => ["localhost:9200"] hosts => "localhost:9200" manage_template => false index => "%{[@metadata][beat]}-%{+YYYY.MM.dd}" document_type => "%{[@metadata][type]}" } }
+#### filebeat
+Настраивал этот конфиг на всех серверах одинаково: ```vi /etc/filebeat/filebeat.yml```. Тут активировал сбор логов файлбитом и указал пути до логов, откуда собирать. Закоментил опцию output.elasticsearch, так как она будет мешать, ну и собственно в output.logstash указал куда отправлять логи (где установлен logstash"). 
+### ha1 + ha2
+#### keepalived
+```firewall-cmd --permanent --add-rich-rule='rule protocol value="vrrp" accept'```. Сам keepalived установил просто через yum и подправил конфиг в systemd, потому что дефолтный смотрит на не существующий файлик запуска, который находится в другом месте. Ну и отредактировал "keepalived.yml", который на обоих серверах отличается только опцией state, которая стоит "master" на ha1 и "backup" на ha2 Выглядит он так: ```global_defs {```
+```smtp_server 10.0.16.1```
+```smtp_connect_timeout 30```
+```router_id LVS_DEVEL }```
+```vrrp_instance VI_1```
+```{ state MASTER```
+```interface ens192```
+```virtual_router_id 51```
+```priority 100```
+```advert_int 1```
+```authentication {```
+```auth_type PASS```
+```auth_pass 1111 }```
+```virtual_ipaddress { 10.0.16.68 } }``
+#### haproxy
+```yum -y install gcc perl pcre-devel openssl-devel zlib-devel readline-devel systemd-devel make``` (тут все в основном для сборки)
+```wget -O /tmp/haproxy.tgz https://www.haproxy.org/download/2.8/src/haproxy-2.8.3.tar.gz```
+```tar -xzvf /tmp/haproxy.tgz -C /tmp && cd /tmp/haproxy-*```
+```make USE_NS=1 USE_TFO=1 USE_OPENSSL=1 USE_ZLIB=1 USE_PCRE=1 USE_SYSTEMD=1 USE_LIBCRYPT=1 USE_THREAD=1 TARGET=linux-glibc```
+```make TARGET=linux-glibc install-bin install-man```
+```cp /usr/local/sbin/haproxy /usr/sbin/haproxy```
+```mkdir -p /var/lib/haproxy```
+```mkdir -p /etc/haproxy```
+```cat <<'EOT' | sudo tee /etc/systemd/system/haproxy.service (тут длинный дефолтный конфиг для сервиса)
+```cat <<EOT | sudo tee /etc/sysconfig/haproxy CLI_OPTIONS="-Ws" CONFIG_FILE=/etc/haproxy/haproxy.cfg PID_FILE=/var/run/haproxy.pid EOT```
+```systemctl daemon-reload```
+```haproxy -v```
+```vim /etc/haproxy/haproxy.cfg```
+```/usr/local/sbin/haproxy -c -V -f /etc/haproxy/haproxy.cfg```
+```systemctl enable haproxy.service```
+```systemctl start haproxy.service```
+***
+Ну и нашел дефолтный конфиг, который сначала пытался поменять под 443 и SSL, так как web-сервера на которых смотрели хапрокси слушались на 443, но у меня не получилось. Возможно проблема в самоподписанных сертификатов, что на web, что на haproxy, ну либо я не так что-то делаю. Вернул конфиг в рабочее состояние, слушает сервера на 80м порту. Чтобы все работало - переписал конфиг nginx на web-машинках на работу без ssl.
 ## Неделя 6. День 1
 ### Финальная аттестация
